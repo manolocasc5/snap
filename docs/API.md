@@ -84,26 +84,35 @@ Crea una URL corta. Requiere autenticación.
 
 **Body**
 ```json
-{ "url": "https://ejemplo.com/articulo-muy-largo" }
+{ "url": "https://ejemplo.com/articulo-muy-largo", "alias": "mi-alias" }
 ```
+
+| Campo | Tipo | Restricciones |
+|-------|------|---------------|
+| `url` | string | URL absoluta válida (con protocolo) |
+| `alias` | string | Opcional. 3–30 caracteres: letras, dígitos, `-` o `_`. No puede ser una palabra reservada ni estar ya en uso. |
 
 **Respuesta 201**
 ```json
 {
   "id": 42,
-  "shortCode": "aB3xY7z",
+  "shortCode": "mi-alias",
   "originalUrl": "https://ejemplo.com/articulo-muy-largo",
-  "shortUrl": "http://localhost:3000/aB3xY7z",
+  "shortUrl": "http://localhost:3000/mi-alias",
   "userId": 1,
   "createdAt": "2026-07-06T21:00:00"
 }
 ```
 
+Si no se proporciona `alias`, el sistema genera un código de 7 caracteres alfanuméricos.
+
 **Errores**
 | Código | Motivo |
 |--------|--------|
 | 400 | `url` ausente, vacía o no es una URL absoluta válida |
+| 400 | `alias` no cumple el formato permitido o es una palabra reservada |
 | 401 | Sin token o token inválido |
+| 409 | El `alias` ya está en uso |
 
 ---
 
@@ -112,6 +121,34 @@ Crea una URL corta. Requiere autenticación.
 Lista todas las URLs del sistema (público).
 
 **Respuesta 200** — array de objetos con la misma estructura que `POST /urls`.
+
+---
+
+### GET /urls/mine 🔒
+
+Devuelve las URLs creadas por el usuario autenticado, incluyendo el total de clicks de cada una.
+
+**Respuesta 200**
+```json
+[
+  {
+    "id": 42,
+    "shortCode": "mi-alias",
+    "originalUrl": "https://ejemplo.com/articulo-muy-largo",
+    "shortUrl": "http://localhost:3000/mi-alias",
+    "userId": 1,
+    "createdAt": "2026-07-06T21:00:00",
+    "clicks": 310
+  }
+]
+```
+
+Ordenado por `id DESC` (más recientes primero).
+
+**Errores**
+| Código | Motivo |
+|--------|--------|
+| 401 | Sin token o token inválido |
 
 ---
 

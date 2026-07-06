@@ -10,11 +10,13 @@ import {
   findUrlByShortCode,
   insertUrl,
   listUrls,
+  listUrlsByUser,
   shortCodeExists,
   type UrlRecord,
 } from "./urlsRepository.js";
 
-const RESERVED_SHORT_CODES = new Set(["health", "urls", "auth"]);
+const RESERVED_SHORT_CODES = new Set(["health", "urls", "auth", "dashboard"]);
+const ALIAS_PATTERN = /^[a-zA-Z0-9_-]{3,30}$/;
 const MAX_GENERATION_ATTEMPTS = 5;
 
 function createUniqueShortCode(): string {
@@ -35,8 +37,9 @@ function toResponseBody(record: UrlRecord): UrlRecord & { shortUrl: string } {
 export const urlsRouter = Router();
 
 urlsRouter.post("/", authenticate, (req: Request, res: Response) => {
-  const body = req.body as { url?: unknown } | undefined;
+  const body = req.body as { url?: unknown; alias?: unknown } | undefined;
   const originalUrl = body?.url;
+  const aliasInput = body?.alias;
 
   if (typeof originalUrl !== "string" || originalUrl.trim() === "") {
     res.status(400).json({ error: 'El campo "url" es obligatorio y debe ser un string.' });
@@ -52,9 +55,29 @@ urlsRouter.post("/", authenticate, (req: Request, res: Response) => {
     return;
   }
 
-  const shortCode = createUniqueShortCode();
-  const record = insertUrl(db, shortCode, originalUrl, req.user!.id);
+  let shortCode: string;
 
+  if (aliasInput !== undefined && aliasInput !== "") {
+    if (typeof aliasInput !== "string" || !ALIAS_PATTERN.test(aliasInput)) {
+      res.status(400).json({
+        error: "El alias debe tener entre 3 y 30 caracteres (letras, números, - o _).",
+      });
+      return;
+    }
+    if (RESERVED_SHORT_CODES.has(aliasInput)) {
+      res.status(400).json({ error: "Este alias está reservado. Elige otro." });
+      return;
+    }
+    if (shortCodeExists(db, aliasInput)) {
+      res.status(409).json({ error: "Este alias ya está en uso. Elige otro." });
+      return;
+    }
+    shortCode = aliasInput;
+  } else {
+    shortCode = createUniqueShortCode();
+  }
+
+  const record = insertUrl(db, shortCode, originalUrl, req.user!.id);
   res.status(201).json(toResponseBody(record));
 });
 
@@ -64,6 +87,12 @@ urlsRouter.get("/", (_req: Request, res: Response) => {
 
 urlsRouter.get("/stats", (_req: Request, res: Response) => {
   res.status(200).json(getTopUrls(db));
+});
+
+urlsRouter.get("/mine", authenticate, (req: Request, res: Response) => {
+  res.status(200).json(
+    listUrlsByUser(db, req.user!.id).map(u => ({ ...u, shortUrl: `${config.baseUrl}/${u.shortCode}` })),
+  );
 });
 
 urlsRouter.get("/:id/stats", (req: Request, res: Response) => {

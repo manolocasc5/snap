@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const ENV_KEYS = ["NODE_ENV", "PORT", "DB_NAME", "BASE_URL"] as const;
+const ENV_KEYS = ["NODE_ENV", "PORT", "DB_NAME", "BASE_URL", "CORS_ORIGIN"] as const;
 const originalEnv: Partial<Record<(typeof ENV_KEYS)[number], string | undefined>> = {};
 
 beforeEach(() => {
@@ -33,6 +33,7 @@ describe("config - valores por defecto", () => {
       dbName: "snap.db",
       baseUrl: "http://localhost:3000",
       jwtSecret: "dev-secret-not-for-production",
+      corsOrigin: "http://localhost:5173",
     });
   });
 
@@ -50,6 +51,7 @@ describe("config - valores por defecto", () => {
       dbName: "otra.db",
       baseUrl: "http://localhost:8080",
       jwtSecret: "dev-secret-not-for-production",
+      corsOrigin: "http://localhost:5173",
     });
   });
 });

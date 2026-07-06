@@ -7,6 +7,7 @@ import {
   findUrlByShortCode,
   insertUrl,
   listUrls,
+  listUrlsByUser,
   shortCodeExists,
 } from "../src/urls/urlsRepository.js";
 
@@ -74,5 +75,50 @@ describe("urlsRepository", () => {
     expect(records).toHaveLength(2);
     expect(records[0]).toMatchObject({ shortCode: "segundo" });
     expect(records[1]).toMatchObject({ shortCode: "primero" });
+  });
+
+  describe("listUrlsByUser", () => {
+    const OTHER_USER_ID = 2;
+
+    beforeEach(() => {
+      db.prepare("INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)").run(
+        OTHER_USER_ID,
+        "other@example.com",
+        "hash",
+        "Other",
+      );
+    });
+
+    it("devuelve solo las URLs del usuario indicado", () => {
+      insertUrl(db, "mia", "https://mia.example.com", USER_ID);
+      insertUrl(db, "ajena", "https://ajena.example.com", OTHER_USER_ID);
+
+      const records = listUrlsByUser(db, USER_ID);
+
+      expect(records).toHaveLength(1);
+      expect(records[0]).toMatchObject({ shortCode: "mia", userId: USER_ID });
+    });
+
+    it("incluye el contador de clicks en cada URL", () => {
+      const url = insertUrl(db, "conclicks", "https://example.com", USER_ID);
+      db.prepare("INSERT INTO clicks (url_id) VALUES (?)").run(url.id);
+      db.prepare("INSERT INTO clicks (url_id) VALUES (?)").run(url.id);
+
+      const records = listUrlsByUser(db, USER_ID);
+
+      expect(records[0].clicks).toBe(2);
+    });
+
+    it("devuelve 0 clicks para URLs sin visitas", () => {
+      insertUrl(db, "sinclicks", "https://example.com", USER_ID);
+
+      const records = listUrlsByUser(db, USER_ID);
+
+      expect(records[0].clicks).toBe(0);
+    });
+
+    it("devuelve array vacío si el usuario no tiene URLs", () => {
+      expect(listUrlsByUser(db, OTHER_USER_ID)).toHaveLength(0);
+    });
   });
 });

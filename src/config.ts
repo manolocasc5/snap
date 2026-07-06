@@ -4,6 +4,7 @@ export interface Config {
   readonly dbName: string;
   readonly baseUrl: string;
   readonly jwtSecret: string;
+  readonly corsOrigin: string;
 }
 
 function parsePort(value: string | undefined): number {
@@ -42,7 +43,9 @@ function loadConfig(): Config {
   }
   const jwtSecret = jwtSecretFromEnv || "dev-secret-not-for-production";
 
-  return { port, nodeEnv, dbName, baseUrl, jwtSecret };
+  const corsOrigin = process.env.CORS_ORIGIN?.trim() || "http://localhost:5173";
+
+  return { port, nodeEnv, dbName, baseUrl, jwtSecret, corsOrigin };
 }
 
 export const config: Config = loadConfig();

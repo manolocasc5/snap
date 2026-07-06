@@ -87,3 +87,23 @@ export function listUrls(db: Database.Database): UrlRecord[] {
 
   return rows.map(toUrlRecord);
 }
+
+export interface UrlWithClicks extends UrlRecord {
+  readonly clicks: number;
+}
+
+export function listUrlsByUser(db: Database.Database, userId: number): UrlWithClicks[] {
+  const rows = db
+    .prepare<[number], UrlRow & { clicks: number }>(
+      `SELECT u.id, u.short_code, u.original_url, u.user_id, u.created_at,
+              COUNT(c.id) AS clicks
+       FROM urls u
+       LEFT JOIN clicks c ON c.url_id = u.id
+       WHERE u.user_id = ?
+       GROUP BY u.id
+       ORDER BY u.id DESC`,
+    )
+    .all(userId);
+
+  return rows.map(row => ({ ...toUrlRecord(row), clicks: row.clicks }));
+}

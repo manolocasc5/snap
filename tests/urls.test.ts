@@ -67,6 +67,106 @@ describe("Funcionalidad core de URLs", () => {
     expect(typeof body.id).toBe("number");
   });
 
+  describe("POST /urls con alias", () => {
+    it("crea la URL con el alias proporcionado", async () => {
+      const response = await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ url: "https://example.com", alias: "mi-alias" }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.shortCode).toBe("mi-alias");
+    });
+
+    it("devuelve 409 si el alias ya está en uso", async () => {
+      await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url: "https://example.com", alias: "duplicado" }),
+      });
+
+      const response = await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url: "https://otro.com", alias: "duplicado" }),
+      });
+
+      expect(response.status).toBe(409);
+      const body = await response.json();
+      expect(body.error).toMatch(/alias/i);
+    });
+
+    it("devuelve 400 si el alias es demasiado corto", async () => {
+      const response = await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url: "https://example.com", alias: "ab" }),
+      });
+
+      expect(response.status).toBe(400);
+    });
+
+    it("devuelve 400 si el alias es una palabra reservada", async () => {
+      const response = await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url: "https://example.com", alias: "health" }),
+      });
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toMatch(/reservado/i);
+    });
+
+    it("ignora el alias si se pasa vacío (genera código automático)", async () => {
+      const response = await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url: "https://example.com", alias: "" }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.shortCode).toMatch(/^[A-Za-z0-9]{7}$/);
+    });
+  });
+
+  describe("GET /urls/mine", () => {
+    it("devuelve solo las URLs del usuario autenticado", async () => {
+      await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url: "https://mia.example.com" }),
+      });
+      await fetch(`${baseUrl}/urls`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${otherToken}` },
+        body: JSON.stringify({ url: "https://ajena.example.com" }),
+      });
+
+      const response = await fetch(`${baseUrl}/urls/mine`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body).toHaveLength(1);
+      expect(body[0].originalUrl).toBe("https://mia.example.com");
+      expect(typeof body[0].clicks).toBe("number");
+      expect(typeof body[0].shortUrl).toBe("string");
+    });
+
+    it("devuelve 401 sin token", async () => {
+      const response = await fetch(`${baseUrl}/urls/mine`);
+      expect(response.status).toBe(401);
+    });
+  });
+
   it("POST /urls sin campo url devuelve 400", async () => {
     const response = await fetch(`${baseUrl}/urls`, {
       method: "POST",

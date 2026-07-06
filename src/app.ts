@@ -1,11 +1,14 @@
+import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { authRouter } from "./auth/authRouter.js";
+import { config } from "./config.js";
 import { dashboardRouter } from "./dashboard/dashboardRouter.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { redirectToOriginalUrl, urlsRouter } from "./urls/urlsRouter.js";
 
 export const app = express();
 
+app.use(cors({ origin: config.corsOrigin }));
 app.use(requestLogger);
 app.use(express.json());
 
